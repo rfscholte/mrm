@@ -73,6 +73,7 @@
     <module>mrm-api</module>
     <module>mrm-servlet</module>
     <module>mrm-maven-plugin</module>
+    <module>mrm-jupiter-extension</module>
   </modules>
 
   <scm>

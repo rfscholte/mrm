@@ -1,0 +1,50 @@
+package org.codehaus.mojo.mrm.jupiter;
+
+/*
+ * Copyright 2011 Stephen Connolly
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * A handle to a running Mock Repository Manager server, providing its URL and port.
+ */
+public class MockRepositoryManagerServer {
+
+    private final String url;
+
+    private final int port;
+
+    MockRepositoryManagerServer(String url, int port) {
+        this.url = url;
+        this.port = port;
+    }
+
+    /**
+     * Returns the base URL of the running Mock Repository Manager server.
+     *
+     * @return the server URL, e.g. {@code http://localhost:8080}
+     */
+    public String getUrl() {
+        return url;
+    }
+
+    /**
+     * Returns the port on which the Mock Repository Manager server is listening.
+     *
+     * @return the bound port number
+     */
+    public int getPort() {
+        return port;
+    }
+}
