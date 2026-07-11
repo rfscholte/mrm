@@ -117,7 +117,7 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
         }
         for (HostedRepo hostedRepo : annotation.hostedRepos()) {
             File target = new File(hostedRepo.target());
-            if (!target.exists() && !target.mkdirs()) {
+            if (!target.isDirectory() && !target.mkdirs()) {
                 throw new IllegalStateException("Failed to create hosted repository directory: " + target);
             }
             stores.add(new DiskArtifactStore(target).canWrite(true));
@@ -135,12 +135,14 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
 
         if (!mockRepo.cloneTo().isEmpty()) {
             File cloneTarget = new File(mockRepo.cloneTo());
-            if (!cloneTarget.mkdirs() && mockRepo.cloneClean()) {
+            if (cloneTarget.exists() && mockRepo.cloneClean()) {
                 try {
                     FileUtils.cleanDirectory(cloneTarget);
                 } catch (IOException e) {
                     throw new IllegalStateException("Failed to clean directory: " + e.getMessage(), e);
                 }
+            } else if (!cloneTarget.isDirectory() && !cloneTarget.mkdirs()) {
+                throw new IllegalStateException("Failed to create clone target directory: " + cloneTarget);
             }
             try {
                 FileUtils.copyDirectory(root, cloneTarget);
