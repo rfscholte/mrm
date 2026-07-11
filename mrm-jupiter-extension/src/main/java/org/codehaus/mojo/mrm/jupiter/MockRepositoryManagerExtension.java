@@ -16,14 +16,20 @@ package org.codehaus.mojo.mrm.jupiter;
  * limitations under the License.
  */
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
+import org.apache.commons.io.FileUtils;
 import org.codehaus.mojo.mrm.api.maven.ArtifactStore;
 import org.codehaus.mojo.mrm.impl.digest.AutoDigestFileSystem;
 import org.codehaus.mojo.mrm.impl.maven.ArtifactStoreFileSystem;
 import org.codehaus.mojo.mrm.impl.maven.CompositeArtifactStore;
-import org.codehaus.mojo.mrm.plugin.ArtifactStoreFactory;
+import org.codehaus.mojo.mrm.impl.maven.DiskArtifactStore;
+import org.codehaus.mojo.mrm.impl.maven.MockArtifactStore;
+import org.codehaus.plexus.archiver.manager.DefaultArchiverManager;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -60,10 +66,8 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
         MockRepositoryManager annotation = context.getRequiredTestClass().getAnnotation(MockRepositoryManager.class);
         int port = annotation != null ? annotation.port() : 0;
         String basePath = annotation != null ? annotation.basePath() : "/";
-        Class<? extends ArtifactStoreFactory>[] repositoryClasses =
-                annotation != null ? annotation.repositories() : new Class[0];
 
-        ArtifactStore artifactStore = createArtifactStore(repositoryClasses);
+        ArtifactStore artifactStore = createArtifactStore(annotation);
         AutoDigestFileSystem fileSystem = new AutoDigestFileSystem(new ArtifactStoreFileSystem(artifactStore));
 
         FileSystemServer server = new FileSystemServer("mrm-jupiter", port, basePath, fileSystem);
@@ -98,22 +102,57 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
         return new MockRepositoryManagerServer(server.getUrl(), server.getPort());
     }
 
-    private ArtifactStore createArtifactStore(Class<? extends ArtifactStoreFactory>[] repositoryClasses) {
-        if (repositoryClasses == null || repositoryClasses.length == 0) {
+    private ArtifactStore createArtifactStore(MockRepositoryManager annotation) {
+        if (annotation == null) {
             return new CompositeArtifactStore(new ArtifactStore[0]);
         }
+
         List<ArtifactStore> stores = new ArrayList<>();
-        for (Class<? extends ArtifactStoreFactory> factoryClass : repositoryClasses) {
-            try {
-                ArtifactStoreFactory factory =
-                        factoryClass.getDeclaredConstructor().newInstance();
-                stores.add(factory.newInstance());
-            } catch (ReflectiveOperationException e) {
-                throw new IllegalStateException(
-                        "Failed to instantiate ArtifactStoreFactory: " + factoryClass.getName(), e);
+
+        for (MockRepo mockRepo : annotation.mockRepos()) {
+            stores.add(createMockRepoStore(mockRepo));
+        }
+        for (LocalRepo localRepo : annotation.localRepos()) {
+            stores.add(new DiskArtifactStore(new File(localRepo.source())));
+        }
+        for (HostedRepo hostedRepo : annotation.hostedRepos()) {
+            File target = new File(hostedRepo.target());
+            if (!target.exists() && !target.mkdirs()) {
+                throw new IllegalStateException("Failed to create hosted repository directory: " + target);
             }
+            stores.add(new DiskArtifactStore(target).canWrite(true));
+        }
+
+        if (stores.isEmpty()) {
+            return new CompositeArtifactStore(new ArtifactStore[0]);
         }
         ArtifactStore[] artifactStores = stores.toArray(new ArtifactStore[0]);
         return artifactStores.length == 1 ? artifactStores[0] : new CompositeArtifactStore(artifactStores);
+    }
+
+    private ArtifactStore createMockRepoStore(MockRepo mockRepo) {
+        File root = new File(mockRepo.source());
+
+        if (!mockRepo.cloneTo().isEmpty()) {
+            File cloneTarget = new File(mockRepo.cloneTo());
+            if (!cloneTarget.mkdirs() && mockRepo.cloneClean()) {
+                try {
+                    FileUtils.cleanDirectory(cloneTarget);
+                } catch (IOException e) {
+                    throw new IllegalStateException("Failed to clean directory: " + e.getMessage(), e);
+                }
+            }
+            try {
+                FileUtils.copyDirectory(root, cloneTarget);
+                root = cloneTarget;
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to copy directory: " + e.getMessage(), e);
+            }
+        }
+
+        return new MockArtifactStore(
+                new DefaultArchiverManager(Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap()),
+                root,
+                mockRepo.lazyArchiver());
     }
 }

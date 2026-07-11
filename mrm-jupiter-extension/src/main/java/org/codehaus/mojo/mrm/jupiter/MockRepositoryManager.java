@@ -21,7 +21,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.codehaus.mojo.mrm.plugin.ArtifactStoreFactory;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
@@ -31,14 +30,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * Test methods may declare a {@link MockRepositoryManagerServer} parameter to receive a handle to the running server.
  * </p>
  * <p>
- * The {@link #repositories()} attribute accepts {@link ArtifactStoreFactory} implementation classes that will be
- * instantiated (using their no-arg constructor) and used to populate the mock repository. When no repositories are
- * specified the server starts with an empty store.
+ * Repositories are configured via the typed annotation attributes {@link #mockRepos()},
+ * {@link #localRepos()}, and {@link #hostedRepos()}. When no repositories are specified the server
+ * starts with an empty store.
  * </p>
  *
  * <pre>
  * {@code
- * @MockRepositoryManager(repositories = MyArtifactStoreFactory.class)
+ * @MockRepositoryManager(localRepos = @LocalRepo(source = "src/test/mrm"))
  * class MyTest {
  *     @Test
  *     void test(MockRepositoryManagerServer server) {
@@ -69,11 +68,26 @@ public @interface MockRepositoryManager {
     String basePath() default "/";
 
     /**
-     * The {@link ArtifactStoreFactory} classes that define the mock artifacts served by the repository.
-     * Each class must have a public no-arg constructor. When no repositories are specified the server starts
-     * with an empty artifact store.
+     * Mock repositories whose artifact content is derived from POM files in the source directory.
      *
-     * @return the artifact store factory classes
+     * @return the mock repository configurations
+     * @see MockRepo
      */
-    Class<? extends ArtifactStoreFactory>[] repositories() default {};
+    MockRepo[] mockRepos() default {};
+
+    /**
+     * Locally stored Maven repositories served read-only from a directory on disk.
+     *
+     * @return the local repository configurations
+     * @see LocalRepo
+     */
+    LocalRepo[] localRepos() default {};
+
+    /**
+     * Hosted repositories that accept artifact uploads (distribution management).
+     *
+     * @return the hosted repository configurations
+     * @see HostedRepo
+     */
+    HostedRepo[] hostedRepos() default {};
 }
