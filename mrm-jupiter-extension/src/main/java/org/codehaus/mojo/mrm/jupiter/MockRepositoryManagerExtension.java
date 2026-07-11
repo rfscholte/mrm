@@ -16,10 +16,14 @@ package org.codehaus.mojo.mrm.jupiter;
  * limitations under the License.
  */
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.codehaus.mojo.mrm.api.maven.ArtifactStore;
 import org.codehaus.mojo.mrm.impl.digest.AutoDigestFileSystem;
 import org.codehaus.mojo.mrm.impl.maven.ArtifactStoreFileSystem;
 import org.codehaus.mojo.mrm.impl.maven.CompositeArtifactStore;
+import org.codehaus.mojo.mrm.plugin.ArtifactStoreFactory;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -56,8 +60,10 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
         MockRepositoryManager annotation = context.getRequiredTestClass().getAnnotation(MockRepositoryManager.class);
         int port = annotation != null ? annotation.port() : 0;
         String basePath = annotation != null ? annotation.basePath() : "/";
+        Class<? extends ArtifactStoreFactory>[] repositoryClasses =
+                annotation != null ? annotation.repositories() : new Class[0];
 
-        ArtifactStore artifactStore = new CompositeArtifactStore(new ArtifactStore[0]);
+        ArtifactStore artifactStore = createArtifactStore(repositoryClasses);
         AutoDigestFileSystem fileSystem = new AutoDigestFileSystem(new ArtifactStoreFileSystem(artifactStore));
 
         FileSystemServer server = new FileSystemServer("mrm-jupiter", port, basePath, fileSystem);
@@ -90,5 +96,24 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
                     "MockRepositoryManagerServer is not available. Make sure the test class is annotated with @MockRepositoryManager.");
         }
         return new MockRepositoryManagerServer(server.getUrl(), server.getPort());
+    }
+
+    private ArtifactStore createArtifactStore(Class<? extends ArtifactStoreFactory>[] repositoryClasses) {
+        if (repositoryClasses == null || repositoryClasses.length == 0) {
+            return new CompositeArtifactStore(new ArtifactStore[0]);
+        }
+        List<ArtifactStore> stores = new ArrayList<>();
+        for (Class<? extends ArtifactStoreFactory> factoryClass : repositoryClasses) {
+            try {
+                ArtifactStoreFactory factory =
+                        factoryClass.getDeclaredConstructor().newInstance();
+                stores.add(factory.newInstance());
+            } catch (ReflectiveOperationException e) {
+                throw new IllegalStateException(
+                        "Failed to instantiate ArtifactStoreFactory: " + factoryClass.getName(), e);
+            }
+        }
+        ArtifactStore[] artifactStores = stores.toArray(new ArtifactStore[0]);
+        return artifactStores.length == 1 ? artifactStores[0] : new CompositeArtifactStore(artifactStores);
     }
 }
