@@ -60,6 +60,7 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
             ExtensionContext.Namespace.create(MockRepositoryManagerExtension.class);
 
     private static final String SERVER_KEY = "fileSystemServer";
+    private static final String SERVER_HANDLE_KEY = "mockRepositoryManagerServer";
 
     @Override
     public void beforeAll(ExtensionContext context) {
@@ -74,14 +75,20 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
         server.ensureStarted();
 
         context.getStore(NAMESPACE).put(SERVER_KEY, server);
+        getOrCreateServerHandle(context, server);
     }
 
     @Override
     public void afterAll(ExtensionContext context) throws InterruptedException {
         FileSystemServer server = context.getStore(NAMESPACE).get(SERVER_KEY, FileSystemServer.class);
+        MockRepositoryManagerServer serverHandle =
+                context.getStore(NAMESPACE).get(SERVER_HANDLE_KEY, MockRepositoryManagerServer.class);
         if (server != null) {
             server.finish();
             server.waitForFinished();
+        }
+        if (serverHandle != null) {
+            serverHandle.cleanup();
         }
     }
 
@@ -99,7 +106,7 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
             throw new ParameterResolutionException(
                     "MockRepositoryManagerServer is not available. Make sure the test class is annotated with @MockRepositoryManager.");
         }
-        return new MockRepositoryManagerServer(server.getUrl(), server.getPort());
+        return getOrCreateServerHandle(extensionContext, server);
     }
 
     private ArtifactStore createArtifactStore(MockRepositoryManager annotation) {
@@ -156,5 +163,15 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
                 new DefaultArchiverManager(Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap()),
                 root,
                 mockRepo.lazyArchiver());
+    }
+
+    private MockRepositoryManagerServer getOrCreateServerHandle(ExtensionContext context, FileSystemServer server) {
+        MockRepositoryManagerServer serverHandle =
+                context.getStore(NAMESPACE).get(SERVER_HANDLE_KEY, MockRepositoryManagerServer.class);
+        if (serverHandle == null) {
+            serverHandle = new MockRepositoryManagerServer(server.getUrl(), server.getPort());
+            context.getStore(NAMESPACE).put(SERVER_HANDLE_KEY, serverHandle);
+        }
+        return serverHandle;
     }
 }

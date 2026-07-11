@@ -27,7 +27,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * Annotation to start a Mock Repository Manager server for a JUnit Jupiter test class.
  * <p>
  * When applied to a test class, the server is started before all tests in the class and stopped after all tests.
- * Test methods may declare a {@link MockRepositoryManagerServer} parameter to receive a handle to the running server.
+ * Test methods may declare a {@link MockRepositoryManagerServer} parameter to receive a handle to the running server,
+ * including access to the server URL, port, and a generated Maven {@code settings.xml} path.
  * </p>
  * <p>
  * Repositories are configured via the typed annotation attributes {@link #mockRepos()},

@@ -16,8 +16,13 @@ package org.codehaus.mojo.mrm.jupiter;
  * limitations under the License.
  */
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -25,9 +30,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class MockRepositoryManagerExtensionTest {
 
     @Test
-    void serverIsRunning(MockRepositoryManagerServer server) {
+    void serverIsRunning(MockRepositoryManagerServer server) throws IOException {
         assertNotNull(server.getUrl());
         assertTrue(server.getUrl().startsWith("http://localhost:"), "URL should start with http://localhost:");
         assertTrue(server.getPort() > 0, "Port should be positive");
+
+        Path settingsPath = Path.of(server.getSettingsFile());
+        assertTrue(Files.isRegularFile(settingsPath), "Settings file should exist");
+        String settings = Files.readString(settingsPath);
+        assertTrue(settings.contains(server.getUrl()), "Settings file should contain the server URL");
+
+        assertEquals(
+                settingsPath.toAbsolutePath().toString(),
+                server.getSettingsFile(),
+                "Settings file path should be stable for the same server handle");
     }
 }
