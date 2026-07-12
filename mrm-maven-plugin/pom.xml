@@ -102,7 +102,6 @@
       <artifactId>archetype-common</artifactId>
     </dependency>
 
-    <!-- http server dependencies -->
     <!-- commons -->
     <dependency>
       <groupId>org.apache.commons</groupId>
