@@ -21,7 +21,10 @@ import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.util.log.Slf4jLog;
 
 /**
- * Jetty SLF4J logger with debug level configuration.
+ * Jetty SLF4J logger with explicit debug-level control.
+ *
+ * <p>This keeps Jetty logging wired to SLF4J while allowing the server owner to enable or suppress debug output for
+ * the embedded server lifecycle.
  */
 class ServerLogger extends Slf4jLog {
     private final boolean debugEnabled;

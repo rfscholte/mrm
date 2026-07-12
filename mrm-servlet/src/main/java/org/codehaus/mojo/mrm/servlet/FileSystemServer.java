@@ -26,6 +26,9 @@ import org.eclipse.jetty.util.log.Logger;
 
 /**
  * A file system server.
+ *
+ * <p>Instances are thread-safe. {@link #ensureStarted()} blocks until the embedded server is ready to accept
+ * requests, and {@link #waitForFinished()} blocks until shutdown has completed.
  */
 public class FileSystemServer {
 
@@ -143,7 +146,7 @@ public class FileSystemServer {
             return "/";
         }
         if (!contextPath.startsWith("/")) {
-            return "/" + contextPath;
+            contextPath = "/" + contextPath;
         }
         if (contextPath.endsWith("/")) {
             return contextPath.substring(0, contextPath.length() - 1);
