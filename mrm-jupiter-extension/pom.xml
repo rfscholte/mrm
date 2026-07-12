@@ -39,6 +39,11 @@
       <artifactId>mrm-servlet</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.codehaus.mojo</groupId>
+      <artifactId>mrm-servlet-jetty</artifactId>
+      <version>${project.version}</version>
+    </dependency>
 
     <!-- http server -->
     <!-- archiver (for MockRepo support) -->
