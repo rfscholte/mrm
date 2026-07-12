@@ -37,8 +37,12 @@ class DirectoryJarMockRepoTest {
         String jarUrl = server.getUrl() + "/localhost/mrm-dir-jar/1.0/mrm-dir-jar-1.0.jar";
         HttpURLConnection connection = (HttpURLConnection) new URL(jarUrl).openConnection();
         connection.setRequestMethod("GET");
-        try (InputStream ignored = connection.getInputStream()) {
-            assertEquals(200, connection.getResponseCode(), "Expected HTTP 200 for directory-backed JAR artifact");
+        assertEquals(200, connection.getResponseCode(), "Expected HTTP 200 for directory-backed JAR artifact");
+        try (InputStream in = connection.getInputStream()) {
+            // JAR/ZIP files start with the PK magic bytes 0x50 0x4B
+            byte[] header = in.readNBytes(2);
+            assertEquals(0x50, header[0] & 0xFF, "Expected PK zip/jar magic byte 0");
+            assertEquals(0x4B, header[1] & 0xFF, "Expected PK zip/jar magic byte 1");
         }
     }
 }
