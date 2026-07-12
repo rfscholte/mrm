@@ -1,4 +1,4 @@
-package org.codehaus.mojo.mrm.plugin;
+package org.codehaus.mojo.mrm.servlet;
 
 /*
  * Copyright MojoHaus and Contributors
@@ -22,8 +22,6 @@ import org.eclipse.jetty.util.log.Slf4jLog;
 
 /**
  * Jetty SLF4J logger with debug level configuration.
- *
- * @author Slawomir Jaranowski
  */
 class ServerLogger extends Slf4jLog {
     private final boolean debugEnabled;

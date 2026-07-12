@@ -34,6 +34,7 @@ import org.codehaus.mojo.mrm.impl.maven.ArtifactStoreFileSystem;
 import org.codehaus.mojo.mrm.impl.maven.CompositeArtifactStore;
 import org.codehaus.mojo.mrm.impl.maven.DiskArtifactStore;
 import org.codehaus.mojo.mrm.impl.maven.MockArtifactStore;
+import org.codehaus.mojo.mrm.servlet.FileSystemServer;
 import org.codehaus.plexus.archiver.Archiver;
 import org.codehaus.plexus.archiver.ear.EarArchiver;
 import org.codehaus.plexus.archiver.jar.JarArchiver;

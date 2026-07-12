@@ -1,4 +1,4 @@
-package org.codehaus.mojo.mrm.jupiter;
+package org.codehaus.mojo.mrm.servlet;
 
 /*
  * Copyright 2011 Stephen Connolly
@@ -17,18 +17,17 @@ package org.codehaus.mojo.mrm.jupiter;
  */
 
 import org.codehaus.mojo.mrm.api.FileSystem;
-import org.codehaus.mojo.mrm.servlet.FileSystemServlet;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Slf4jLog;
+import org.eclipse.jetty.util.log.Logger;
 
 /**
  * A file system server.
  */
-class FileSystemServer {
+public class FileSystemServer {
 
     /**
      * Guard for {@link #starting}, {@link #started}, {@link #finishing}, {@link #finished}, {@link #boundPort}
@@ -99,6 +98,11 @@ class FileSystemServer {
     private final String contextPath;
 
     /**
+     * Indicate debug level by Jetty server.
+     */
+    private final boolean debugServer;
+
+    /**
      * Creates a new file system server that will serve a {@link FileSystem} over HTTP on the specified port.
      *
      * @param name        The name of the file system server thread.
@@ -106,16 +110,30 @@ class FileSystemServer {
      * @param contextPath The root context path for server
      * @param fileSystem  the file system to serve.
      */
-    FileSystemServer(String name, int port, String contextPath, FileSystem fileSystem) {
+    public FileSystemServer(String name, int port, String contextPath, FileSystem fileSystem) {
+        this(name, port, contextPath, fileSystem, false);
+    }
+
+    /**
+     * Creates a new file system server that will serve a {@link FileSystem} over HTTP on the specified port.
+     *
+     * @param name        The name of the file system server thread.
+     * @param port        The port to serve on or <code>0</code> to pick a random, but available, port.
+     * @param contextPath The root context path for server
+     * @param fileSystem  the file system to serve.
+     * @param debugServer the server debug mode
+     */
+    public FileSystemServer(String name, int port, String contextPath, FileSystem fileSystem, boolean debugServer) {
         this.name = name;
         this.fileSystem = fileSystem;
         this.requestedPort = port;
         this.contextPath = sanitizeContextPath(contextPath);
+        this.debugServer = debugServer;
     }
 
     /**
      * Sanitize the given {@code contextPath} by prepending slash if necessary and/or removing the trailing slash if
-     * necessary
+     * necessary.
      *
      * @param contextPath the contextPath to sanitize
      * @return sanitized {@code contextPath}
@@ -135,11 +153,11 @@ class FileSystemServer {
 
     /**
      * Ensures that the file system server is started (if already starting, will block until started, otherwise starts
-     * the file system server and blocks until started)
+     * the file system server and blocks until started).
      *
      * @throws IllegalStateException if the file system server could not be started.
      */
-    void ensureStarted() {
+    public void ensureStarted() {
         synchronized (lock) {
             if (started || starting) {
                 return;
@@ -171,7 +189,7 @@ class FileSystemServer {
      *
      * @return <code>true</code> if and only if the file system server is finished.
      */
-    boolean isFinished() {
+    public boolean isFinished() {
         synchronized (lock) {
             return finished;
         }
@@ -182,7 +200,7 @@ class FileSystemServer {
      *
      * @return <code>true</code> if and only if the file system server is started.
      */
-    boolean isStarted() {
+    public boolean isStarted() {
         synchronized (lock) {
             return started;
         }
@@ -191,7 +209,7 @@ class FileSystemServer {
     /**
      * Signal the file system server to shut down.
      */
-    void finish() {
+    public void finish() {
         synchronized (lock) {
             finishing = true;
             lock.notifyAll();
@@ -203,7 +221,7 @@ class FileSystemServer {
      *
      * @throws InterruptedException if interrupted.
      */
-    void waitForFinished() throws InterruptedException {
+    public void waitForFinished() throws InterruptedException {
         synchronized (lock) {
             while (!finished) {
                 lock.wait();
@@ -216,7 +234,7 @@ class FileSystemServer {
      *
      * @return the port that the file system server is/will serve on.
      */
-    int getPort() {
+    public int getPort() {
         synchronized (lock) {
             return started ? boundPort : requestedPort;
         }
@@ -227,7 +245,7 @@ class FileSystemServer {
      *
      * @return the root url that the file system server is/will serve on.
      */
-    String getUrl() {
+    public String getUrl() {
         return "http://localhost:" + getPort() + (contextPath.equals("/") ? "" : contextPath);
     }
 
@@ -239,7 +257,7 @@ class FileSystemServer {
         @Override
         public void run() {
             try {
-                Slf4jLog serverLogger = new Slf4jLog(FileSystemServer.class.getName());
+                Logger serverLogger = new ServerLogger(debugServer);
                 Log.setLog(serverLogger);
                 Log.initialized();
 
