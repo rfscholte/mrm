@@ -94,6 +94,8 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
             rootStore.put(ANNOTATION_KEY, annotation);
         } else {
             MockRepositoryManager startedAnnotation = rootStore.get(ANNOTATION_KEY, MockRepositoryManager.class);
+            // Annotation.equals() performs deep equality for all members, including array-typed members
+            // (e.g. mockRepos), as required by the Java Language Specification (JLS 9.6.1).
             if (!Objects.equals(annotation, startedAnnotation)) {
                 throw new ExtensionConfigurationException(
                         "A MockRepositoryManager server is already running with a different configuration. "
