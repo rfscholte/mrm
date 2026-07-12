@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.commons.io.FileUtils;
 import org.codehaus.mojo.mrm.api.maven.ArtifactStore;
@@ -42,7 +43,9 @@ import org.codehaus.plexus.archiver.war.WarArchiver;
 import org.codehaus.plexus.archiver.zip.ZipArchiver;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.ExtensionContext.StoreScope;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
@@ -69,37 +72,39 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
     private static final ExtensionContext.Namespace NAMESPACE =
             ExtensionContext.Namespace.create(MockRepositoryManagerExtension.class);
 
-    private static final String SERVER_KEY = "fileSystemServer";
-    private static final String SERVER_HANDLE_KEY = "mockRepositoryManagerServer";
+    private static final String SERVER_RESOURCE_KEY = "serverResource";
+    private static final String ANNOTATION_KEY = "annotation";
 
     @Override
     public void beforeAll(ExtensionContext context) {
         MockRepositoryManager annotation = context.getRequiredTestClass().getAnnotation(MockRepositoryManager.class);
-        int port = annotation != null ? annotation.port() : 0;
-        String basePath = annotation != null ? annotation.basePath() : "/";
 
-        ArtifactStore artifactStore = createArtifactStore(annotation);
-        AutoDigestFileSystem fileSystem = new AutoDigestFileSystem(new ArtifactStoreFileSystem(artifactStore));
+        ExtensionContext.Store rootStore = context.getStore(StoreScope.EXECUTION_REQUEST, NAMESPACE);
 
-        FileSystemServer server = new FileSystemServer("mrm-jupiter", port, basePath, fileSystem);
-        server.ensureStarted();
-
-        context.getStore(NAMESPACE).put(SERVER_KEY, server);
-        getOrCreateServerHandle(context, server);
+        ServerResource existing = rootStore.get(SERVER_RESOURCE_KEY, ServerResource.class);
+        if (existing == null) {
+            int port = annotation != null ? annotation.port() : 0;
+            String basePath = annotation != null ? annotation.basePath() : "/";
+            ArtifactStore artifactStore = createArtifactStore(annotation);
+            AutoDigestFileSystem fileSystem = new AutoDigestFileSystem(new ArtifactStoreFileSystem(artifactStore));
+            FileSystemServer server = new FileSystemServer("mrm-jupiter", port, basePath, fileSystem);
+            server.ensureStarted();
+            MockRepositoryManagerServer handle = new MockRepositoryManagerServer(server.getUrl(), server.getPort());
+            rootStore.put(SERVER_RESOURCE_KEY, new ServerResource(server, handle));
+            rootStore.put(ANNOTATION_KEY, annotation);
+        } else {
+            MockRepositoryManager startedAnnotation = rootStore.get(ANNOTATION_KEY, MockRepositoryManager.class);
+            if (!Objects.equals(annotation, startedAnnotation)) {
+                throw new ExtensionConfigurationException(
+                        "A MockRepositoryManager server is already running with a different configuration. "
+                                + "All test classes annotated with @MockRepositoryManager must use the same configuration.");
+            }
+        }
     }
 
     @Override
-    public void afterAll(ExtensionContext context) throws InterruptedException {
-        FileSystemServer server = context.getStore(NAMESPACE).get(SERVER_KEY, FileSystemServer.class);
-        MockRepositoryManagerServer serverHandle =
-                context.getStore(NAMESPACE).get(SERVER_HANDLE_KEY, MockRepositoryManagerServer.class);
-        if (server != null) {
-            server.finish();
-            server.waitForFinished();
-        }
-        if (serverHandle != null) {
-            serverHandle.cleanup();
-        }
+    public void afterAll(ExtensionContext context) {
+        // Server lifecycle is managed at root context level via CloseableResource; nothing to do here.
     }
 
     @Override
@@ -111,12 +116,14 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
     @Override
     public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext)
             throws ParameterResolutionException {
-        FileSystemServer server = extensionContext.getStore(NAMESPACE).get(SERVER_KEY, FileSystemServer.class);
-        if (server == null) {
+        ServerResource resource = extensionContext
+                .getStore(StoreScope.EXECUTION_REQUEST, NAMESPACE)
+                .get(SERVER_RESOURCE_KEY, ServerResource.class);
+        if (resource == null) {
             throw new ParameterResolutionException(
                     "MockRepositoryManagerServer is not available. Make sure the test class is annotated with @MockRepositoryManager.");
         }
-        return getOrCreateServerHandle(extensionContext, server);
+        return resource.getHandle();
     }
 
     private ArtifactStore createArtifactStore(MockRepositoryManager annotation) {
@@ -181,13 +188,28 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
         return new DefaultArchiverManager(archivers, Collections.emptyMap(), Collections.emptyMap());
     }
 
-    private MockRepositoryManagerServer getOrCreateServerHandle(ExtensionContext context, FileSystemServer server) {
-        MockRepositoryManagerServer serverHandle =
-                context.getStore(NAMESPACE).get(SERVER_HANDLE_KEY, MockRepositoryManagerServer.class);
-        if (serverHandle == null) {
-            serverHandle = new MockRepositoryManagerServer(server.getUrl(), server.getPort());
-            context.getStore(NAMESPACE).put(SERVER_HANDLE_KEY, serverHandle);
+    private static final class ServerResource implements AutoCloseable {
+
+        private final FileSystemServer server;
+        private final MockRepositoryManagerServer handle;
+
+        ServerResource(FileSystemServer server, MockRepositoryManagerServer handle) {
+            this.server = server;
+            this.handle = handle;
         }
-        return serverHandle;
+
+        MockRepositoryManagerServer getHandle() {
+            return handle;
+        }
+
+        @Override
+        public void close() throws Exception {
+            try {
+                server.finish();
+                server.waitForFinished();
+            } finally {
+                handle.cleanup();
+            }
+        }
     }
 }

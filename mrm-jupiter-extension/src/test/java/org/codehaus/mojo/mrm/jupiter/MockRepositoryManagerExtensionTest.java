@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@MockRepositoryManager
+@MockRepositoryManager(mockRepos = @MockRepo(source = "src/test/resources/directory-jar-repo"))
 class MockRepositoryManagerExtensionTest {
 
     @Test
