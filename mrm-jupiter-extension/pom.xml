@@ -67,6 +67,21 @@
       <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-archiver</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-artifact</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-model</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-repository-metadata</artifactId>
+      <scope>compile</scope>
+    </dependency>
 
     <!-- JUnit Jupiter -->
     <dependency>
@@ -104,7 +119,13 @@
               <ignoredUnusedDeclaredDependencies combine.children="append">
                 <dependency>org.junit.jupiter:junit-jupiter-engine</dependency>
                 <dependency>org.mockito:mockito-junit-jupiter</dependency>
+                <dependency>org.apache.maven:maven-artifact</dependency>
+                <dependency>org.apache.maven:maven-model</dependency>
+                <dependency>org.apache.maven:maven-repository-metadata</dependency>
               </ignoredUnusedDeclaredDependencies>
+              <ignoredUsedUndeclaredDependencies combine.children="append">
+                <dependency>javax.inject:javax.inject</dependency>
+              </ignoredUsedUndeclaredDependencies>
             </configuration>
           </execution>
         </executions>

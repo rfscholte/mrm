@@ -16,11 +16,15 @@ package org.codehaus.mojo.mrm.jupiter;
  * limitations under the License.
  */
 
+import javax.inject.Provider;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.codehaus.mojo.mrm.api.maven.ArtifactStore;
@@ -29,7 +33,13 @@ import org.codehaus.mojo.mrm.impl.maven.ArtifactStoreFileSystem;
 import org.codehaus.mojo.mrm.impl.maven.CompositeArtifactStore;
 import org.codehaus.mojo.mrm.impl.maven.DiskArtifactStore;
 import org.codehaus.mojo.mrm.impl.maven.MockArtifactStore;
+import org.codehaus.plexus.archiver.Archiver;
+import org.codehaus.plexus.archiver.ear.EarArchiver;
+import org.codehaus.plexus.archiver.jar.JarArchiver;
+import org.codehaus.plexus.archiver.manager.ArchiverManager;
 import org.codehaus.plexus.archiver.manager.DefaultArchiverManager;
+import org.codehaus.plexus.archiver.war.WarArchiver;
+import org.codehaus.plexus.archiver.zip.ZipArchiver;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -159,10 +169,16 @@ public class MockRepositoryManagerExtension implements BeforeAllCallback, AfterA
             }
         }
 
-        return new MockArtifactStore(
-                new DefaultArchiverManager(Collections.emptyMap(), Collections.emptyMap(), Collections.emptyMap()),
-                root,
-                mockRepo.lazyArchiver());
+        return new MockArtifactStore(createArchiverManager(), root, mockRepo.lazyArchiver());
+    }
+
+    private static ArchiverManager createArchiverManager() {
+        Map<String, Provider<Archiver>> archivers = new HashMap<>();
+        archivers.put("jar", JarArchiver::new);
+        archivers.put("zip", ZipArchiver::new);
+        archivers.put("war", WarArchiver::new);
+        archivers.put("ear", EarArchiver::new);
+        return new DefaultArchiverManager(archivers, Collections.emptyMap(), Collections.emptyMap());
     }
 
     private MockRepositoryManagerServer getOrCreateServerHandle(ExtensionContext context, FileSystemServer server) {
