@@ -1,4 +1,4 @@
-package org.codehaus.mojo.mrm.maven;
+package org.codehaus.mojo.mrm.impl.maven;
 
 /*
  * Copyright 2011 Stephen Connolly
@@ -31,15 +31,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.archetype.ArchetypeManager;
 import org.apache.maven.archetype.catalog.ArchetypeCatalog;
 import org.apache.maven.artifact.repository.metadata.Metadata;
 import org.apache.maven.artifact.repository.metadata.io.xpp3.MetadataXpp3Reader;
-import org.apache.maven.execution.MavenSession;
-import org.codehaus.mojo.mrm.api.ResolverUtils;
 import org.codehaus.mojo.mrm.api.maven.ArchetypeCatalogNotFoundException;
 import org.codehaus.mojo.mrm.api.maven.Artifact;
 import org.codehaus.mojo.mrm.api.maven.ArtifactNotFoundException;
@@ -48,6 +45,7 @@ import org.codehaus.mojo.mrm.api.maven.MetadataNotFoundException;
 import org.codehaus.mojo.mrm.plugin.FactoryHelper;
 import org.codehaus.plexus.util.xml.pull.XmlPullParserException;
 import org.eclipse.aether.RepositorySystem;
+import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.metadata.DefaultMetadata;
 import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
@@ -74,7 +72,7 @@ public class ProxyArtifactStore extends BaseArtifactStore {
 
     private final RepositorySystem repositorySystem;
 
-    private final MavenSession session;
+    private final RepositorySystemSession repositorySystemSession;
 
     private final ArchetypeManager archetypeManager;
 
@@ -86,13 +84,8 @@ public class ProxyArtifactStore extends BaseArtifactStore {
     public ProxyArtifactStore(FactoryHelper factoryHelper) {
         this.repositorySystem = Objects.requireNonNull(factoryHelper.getRepositorySystem());
         this.archetypeManager = Objects.requireNonNull(factoryHelper.getArchetypeManager());
-        this.session = Objects.requireNonNull(factoryHelper.getMavenSession());
-
-        remoteRepositories = Stream.concat(
-                        session.getCurrentProject().getRemoteProjectRepositories().stream(),
-                        session.getCurrentProject().getRemotePluginRepositories().stream())
-                .distinct()
-                .collect(Collectors.toList());
+        this.repositorySystemSession = Objects.requireNonNull(factoryHelper.getRepositorySystemSession());
+        this.remoteRepositories = factoryHelper.getRemoteRepositories();
     }
 
     /**
@@ -179,9 +172,9 @@ public class ProxyArtifactStore extends BaseArtifactStore {
         try {
             File file = ofNullable(repositorySystem
                             .resolveArtifact(
-                                    session.getRepositorySession(),
+                                    repositorySystemSession,
                                     new ArtifactRequest(
-                                            ResolverUtils.createArtifact(session, artifact),
+                                            ResolverUtils.createArtifact(repositorySystemSession, artifact),
                                             remoteRepositories,
                                             getClass().getSimpleName()))
                             .getArtifact())
@@ -271,8 +264,7 @@ public class ProxyArtifactStore extends BaseArtifactStore {
             requests.add(request);
         }
 
-        List<MetadataResult> metadataResults =
-                repositorySystem.resolveMetadata(session.getRepositorySession(), requests);
+        List<MetadataResult> metadataResults = repositorySystem.resolveMetadata(repositorySystemSession, requests);
 
         Metadata resultMetadata = null;
         for (MetadataResult result : metadataResults) {
@@ -333,12 +325,12 @@ public class ProxyArtifactStore extends BaseArtifactStore {
 
     @Override
     public ArchetypeCatalog getArchetypeCatalog() {
-        return archetypeManager.getLocalCatalog(session.getRepositorySession());
+        return archetypeManager.getLocalCatalog(repositorySystemSession);
     }
 
     @Override
     public long getArchetypeCatalogLastModified() throws ArchetypeCatalogNotFoundException {
-        if (archetypeManager.getLocalCatalog(session.getRepositorySession()) != null) {
+        if (archetypeManager.getLocalCatalog(repositorySystemSession) != null) {
             return System.currentTimeMillis();
         } else {
             throw new ArchetypeCatalogNotFoundException();
