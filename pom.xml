@@ -74,6 +74,7 @@
     <module>mrm-servlet</module>
     <module>mrm-servlet-jetty</module>
     <module>mrm-maven-plugin</module>
+    <module>mrm-jupiter-extension</module>
   </modules>
 
   <scm>
